@@ -88,7 +88,9 @@ def make_dns_req(query, server_ip, server_port=53):
         message, client = udp.recvfrom(1024)
     return message
 
-def find_nameserver_ip(response):
+def pick_nameserver_ip(response):
+    # look for nameservers in authority section 
+    # and map them to their IPs in additional
     for nameserver in response['nameservers']:
         for additional in response['additionals']:
             if nameserver['addr'] == additional['hostname']:
@@ -119,7 +121,7 @@ def resolve_ip(hostname):
     root_response = parse_packet(make_dns_req(query, root_ip, 53))
 
     # look for tld server IP in additional records
-    tld_ip = find_nameserver_ip(root_response)
+    tld_ip = pick_nameserver_ip(root_response)
     log("TLD IP:", tld_ip)
 
 
@@ -128,7 +130,7 @@ def resolve_ip(hostname):
     tld_response = parse_packet(make_dns_req(query, tld_ip))
 
     # look for authoritative server IP in additional records
-    auth_ip = find_nameserver_ip(tld_response)
+    auth_ip = pick_nameserver_ip(tld_response)
     log('Authoritative IP:', tld_ip)
 
     # send query to tld
@@ -152,11 +154,14 @@ def resolve_ip(hostname):
     return answer['addr']
 
 def get_html(hostname, ip):
-    # get html and write to file
+    # send GET / request to IP
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as tcp:
+        # connect on http port 80
         tcp.connect((ip, 80))
+        # send GET request
         http_req = 'GET / HTTP/1.1\r\nHost:%s\r\n\r\n' % hostname
         tcp.sendall(http_req.encode())
+        # receive HTML response
         return tcp.recv(4096)
 
 if __name__ == '__main__':
