@@ -169,14 +169,15 @@ if __name__ == '__main__':
         # get hostname from stdin
         hostname = input('Hostname > ').strip()
 
-        # resolve IP address using iterative DNS
         try:
+            # resolve IP address using iterative DNS
             ip = resolve_ip(hostname)
         
             # send http get request and write to file
-            html = get_html(hostname, ip)
             file = 'html/%s.html' % hostname
             log("Writing HTML to %s" % file)
+
+            html = get_html(hostname, ip)
             with open(file, 'wb') as f:
                 f.write(html)
         except:
