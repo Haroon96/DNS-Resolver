@@ -2,6 +2,8 @@ import socket
 from random import randint
 from random import choice
 from datetime import datetime
+import pickle
+import os
 from parsers import *
 
 # cache using a dictionary
@@ -103,7 +105,7 @@ def resolve_ip(hostname):
         cached_answer = cache[hostname]
         # check if cache still valid and return else delete from cache
         if (datetime.now() - cached_answer['timestamp']).seconds < cached_answer['ttl']:
-            log("Answer already cached")
+            log("Found answer in cache")
             return cached_answer['addr']
         else:
             del cache[hostname]
@@ -164,7 +166,7 @@ def get_html(hostname, ip):
         # receive HTML response
         return tcp.recv(4096)
 
-if __name__ == '__main__':
+def main():
     while True:
         # get hostname from stdin
         hostname = input('Hostname > ').strip()
@@ -184,3 +186,17 @@ if __name__ == '__main__':
             print('Could not resolve hostname')
 
         print(''.ljust(60, '*'))
+
+if __name__ == '__main__':
+    # load persistent cache from disk
+    if os.path.exists('cache.pickle'):
+        with open('cache.pickle', 'rb') as f:
+            cache = pickle.load(f)
+
+    try:
+        main()
+    except: pass
+    finally:
+        # write cache to disk
+        with open('cache.pickle', 'wb') as f:
+            pickle.dump(cache, f)
