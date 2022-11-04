@@ -4,6 +4,7 @@ from random import choice
 from datetime import datetime
 import pickle
 import os
+from argparse import ArgumentParser
 from parsers import *
 
 # cache using a dictionary
@@ -12,6 +13,9 @@ cache = {}
 def log(*args):
     print('>>> ', end='')
     print(*args)
+
+def timedelta(end, start):
+    return '%sms' % ((end - start).microseconds / 1000)
 
 def build_packet(hostname):
     packet = bytes()
@@ -120,7 +124,9 @@ def resolve_ip(hostname):
     log("Root IP:", root_ip)
 
     # send request to root server
+    start_ts = datetime.now()
     root_response = parse_packet(make_dns_req(query, root_ip, 53))
+    log("Root RTT:", timedelta(datetime.now(), start_ts))
 
     # look for tld server IP in additional records
     tld_ip = pick_nameserver_ip(root_response)
@@ -129,14 +135,19 @@ def resolve_ip(hostname):
 
     ## TLD DNS SERVER
     # send query to tld
+    start_ts = datetime.now()
     tld_response = parse_packet(make_dns_req(query, tld_ip))
+    log("TLD RTT:", timedelta(datetime.now(), start_ts))
 
     # look for authoritative server IP in additional records
     auth_ip = pick_nameserver_ip(tld_response)
     log('Authoritative IP:', tld_ip)
 
     # send query to tld
+
+    start_ts = datetime.now()
     auth_response = parse_packet(make_dns_req(query, auth_ip))
+    log("Authoritative RTT:", timedelta(datetime.now(), start_ts))
 
     # send query to authoritative
     log('Answer Resource Records:')
@@ -173,13 +184,15 @@ def main():
 
         try:
             # resolve IP address using iterative DNS
-            ip = resolve_ip(hostname)
+            start_ts = datetime.now()
+            ip = resolve_ip(hostname)    
+            log("DNS Resolution RTT:", timedelta(datetime.now(), start_ts))
+
         
             # send http get request and write to file
+            html = get_html(hostname, ip)
             file = 'html/%s.html' % hostname
             log("Writing HTML to %s" % file)
-
-            html = get_html(hostname, ip)
             with open(file, 'wb') as f:
                 f.write(html)
         except:
@@ -187,12 +200,21 @@ def main():
 
         print(''.ljust(60, '*'))
 
+def parse_args():
+    args = ArgumentParser()
+    args.add_argument('--reload-cache', action='store_true')
+    return args.parse_args()
+
 if __name__ == '__main__':
     # load persistent cache from disk
-    if os.path.exists('cache.pickle'):
+    args = parse_args()
+
+    # load cache unless specified otherwise
+    if not args.reload_cache and os.path.exists('cache.pickle'):
         with open('cache.pickle', 'rb') as f:
             cache = pickle.load(f)
 
+    # run main program
     try:
         main()
     except: pass
