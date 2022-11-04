@@ -2,7 +2,7 @@ import socket
 from random import randint
 from random import choice
 from datetime import datetime
-from parser import *
+from parsers import *
 
 # cache using a dictionary
 cache = {}
